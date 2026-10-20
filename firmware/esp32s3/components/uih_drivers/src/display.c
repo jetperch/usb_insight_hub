@@ -8,10 +8,12 @@
  *
  * @brief The three ST7789 displays on one SPI bus (doc/hardware.md).
  *
- * The displays share MOSI, SCLK, DC and reset, so one esp_lcd panel drives
- * them all and this file selects a display with its CS line.  As in the
- * stock firmware, all CS lines are low during initialization so the
- * displays receive the same setup.
+ * The displays share MOSI, SCLK, DC and reset, so one esp_lcd SPI panel IO
+ * drives them all and this file selects a display with its CS line.  The
+ * setup matches the stock firmware (TFT_eSPI): SPI mode 3 at 40 MHz, an
+ * active-high reset pulse, the uih/st7789.h command table sent with all CS
+ * lines low, and the backlight PWM at 800 / 1023, 193 Hz.  esp_lcd's own
+ * ST7789 driver sends only a minimal setup, without the panel voltages.
  */
 
 #include "uih/board.h"
@@ -21,9 +23,8 @@
 #include "driver/spi_master.h"
 #include "esp_heap_caps.h"
 #include "esp_lcd_io_spi.h"
-#include "esp_lcd_panel_dev.h"
-#include "esp_lcd_panel_ops.h"
-#include "esp_lcd_panel_st7789.h"
+#include "esp_lcd_panel_io.h"
+#include "uih/st7789.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include <string.h>
@@ -34,9 +35,10 @@
 #define LCD_DC (GPIO_NUM_10)
 #define LCD_RESET (GPIO_NUM_14)
 #define LCD_HZ (40000000)
-#define LCD_Y_GAP (80)            ///< 240 x 240 window of the 240 x 320 RAM, rotated 180
-#define BACKLIGHT_HZ (5000)
-#define BACKLIGHT_DUTY (600)      ///< of 1023: fixed, no menu
+#define LCD_SPI_MODE (3)          ///< TFT_eSPI's mode for every ST7789
+#define RESET_PULSE_MS (10)
+#define BACKLIGHT_HZ (193)        ///< stock, at a 160 MHz CPU
+#define BACKLIGHT_DUTY (800)      ///< of 1023: the stock default brightness
 #define DRAW_TIMEOUT_MS (100)
 
 /// Return on error, naming the failed step for uih_board_display_init().
@@ -50,7 +52,7 @@
 static const gpio_num_t CS[3] = {GPIO_NUM_6, GPIO_NUM_16, GPIO_NUM_12};
 static const gpio_num_t BACKLIGHT[3] = {GPIO_NUM_13, GPIO_NUM_15, GPIO_NUM_17};
 
-static esp_lcd_panel_handle_t panel_;
+static esp_lcd_panel_io_handle_t io_;
 static SemaphoreHandle_t done_;
 static uint8_t * band_;
 
@@ -92,9 +94,18 @@ static esp_err_t backlight_init(void) {
 }
 
 static esp_err_t draw(int display, uint16_t y, uint16_t h, const uint8_t * pixels) {
+    uint8_t caset[4], raset[4];
+    uih_st7789_window(0, y, UIH_DISPLAY_WIDTH, h, caset, raset);
     cs_select(display);
     xSemaphoreTake(done_, 0);  // clear a stale completion
-    esp_err_t rc = esp_lcd_panel_draw_bitmap(panel_, 0, y, UIH_DISPLAY_WIDTH, y + h, pixels);
+    esp_err_t rc = esp_lcd_panel_io_tx_param(io_, UIH_ST7789_CASET, caset, 4);
+    if (rc == ESP_OK) {
+        rc = esp_lcd_panel_io_tx_param(io_, UIH_ST7789_RASET, raset, 4);
+    }
+    if (rc == ESP_OK) {
+        rc = esp_lcd_panel_io_tx_color(io_, UIH_ST7789_RAMWR, pixels,
+                                       (size_t) UIH_DISPLAY_WIDTH * h * 2);
+    }
     if ((rc == ESP_OK) && (xSemaphoreTake(done_, pdMS_TO_TICKS(DRAW_TIMEOUT_MS)) != pdTRUE)) {
         rc = ESP_ERR_TIMEOUT;
     }
@@ -109,11 +120,13 @@ esp_err_t uih_board_display_init(const char ** step) {
         *step = "alloc";
         return ESP_ERR_NO_MEM;
     }
-    gpio_config_t cs_cfg = {.mode = GPIO_MODE_OUTPUT};
+    gpio_config_t out_cfg = {.mode = GPIO_MODE_OUTPUT, .pin_bit_mask = 1ULL << LCD_RESET};
     for (int i = 0; i < 3; ++i) {
-        cs_cfg.pin_bit_mask |= 1ULL << CS[i];
+        out_cfg.pin_bit_mask |= 1ULL << CS[i];
     }
-    STEP_("cs", gpio_config(&cs_cfg));
+    gpio_set_level(LCD_RESET, 0);   // released (active high)
+    cs_select(NO_DISPLAY);
+    STEP_("gpio", gpio_config(&out_cfg));
 
     spi_bus_config_t bus = {
         .mosi_io_num = LCD_MOSI,
@@ -124,11 +137,10 @@ esp_err_t uih_board_display_init(const char ** step) {
         .max_transfer_sz = UIH_DISPLAY_BAND_BYTES,
     };
     STEP_("spi", spi_bus_initialize(LCD_HOST, &bus, SPI_DMA_CH_AUTO));
-    esp_lcd_panel_io_handle_t io;
     esp_lcd_panel_io_spi_config_t io_cfg = {
         .cs_gpio_num = -1,  // CS is selected per display, above
         .dc_gpio_num = LCD_DC,
-        .spi_mode = 0,
+        .spi_mode = LCD_SPI_MODE,
         .pclk_hz = LCD_HZ,
         .trans_queue_depth = 4,
         .on_color_trans_done = on_color_done,
@@ -136,30 +148,35 @@ esp_err_t uih_board_display_init(const char ** step) {
         .lcd_cmd_bits = 8,
         .lcd_param_bits = 8,
     };
-    STEP_("io", esp_lcd_new_panel_io_spi(LCD_HOST, &io_cfg, &io));
-    esp_lcd_panel_dev_config_t dev_cfg = {
-        .reset_gpio_num = LCD_RESET,
-        .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_BGR,
-        .bits_per_pixel = 16,
-        .flags.reset_active_high = 1,   // doc/hardware.md
-    };
-    STEP_("panel", esp_lcd_new_panel_st7789(io, &dev_cfg, &panel_));
-    cs_select(ALL_DISPLAYS);  // the common setup
-    STEP_("reset", esp_lcd_panel_reset(panel_));
-    STEP_("init", esp_lcd_panel_init(panel_));
-    STEP_("invert", esp_lcd_panel_invert_color(panel_, true));
-    STEP_("mirror", esp_lcd_panel_mirror(panel_, true, true));
-    STEP_("gap", esp_lcd_panel_set_gap(panel_, 0, LCD_Y_GAP));
+    STEP_("io", esp_lcd_new_panel_io_spi(LCD_HOST, &io_cfg, &io_));
+    // A NOP with no display selected leaves SCLK at its mode 3 idle level
+    // before the first CS falling edge.
+    STEP_("nop", esp_lcd_panel_io_tx_param(io_, 0x00, NULL, 0));
+
+    // As the stock firmware: reset pulse, then the setup with all CS low.
+    vTaskDelay(pdMS_TO_TICKS(50));
+    gpio_set_level(LCD_RESET, 1);
+    vTaskDelay(pdMS_TO_TICKS(RESET_PULSE_MS));
+    gpio_set_level(LCD_RESET, 0);
+    vTaskDelay(pdMS_TO_TICKS(RESET_PULSE_MS));
+    cs_select(ALL_DISPLAYS);
+    for (size_t i = 0; i < UIH_ST7789_INIT_COUNT; ++i) {
+        const uih_st7789_cmd_s * c = &UIH_ST7789_INIT[i];
+        esp_err_t rc = esp_lcd_panel_io_tx_param(io_, c->cmd, c->len ? c->data : NULL, c->len);
+        if (rc != ESP_OK) {
+            cs_select(NO_DISPLAY);
+            STEP_("init", rc);
+        }
+        if (c->delay_ms) {
+            vTaskDelay(pdMS_TO_TICKS(c->delay_ms));
+        }
+    }
 
     // Clear the whole screen on all three displays at once.
     memset(band_, 0, UIH_DISPLAY_BAND_BYTES);
     for (uint16_t y = 0; y < UIH_DISPLAY_HEIGHT; y += UIH_DISPLAY_BAND_HEIGHT_MAX) {
         STEP_("clear", draw(ALL_DISPLAYS, y, UIH_DISPLAY_BAND_HEIGHT_MAX, band_));
     }
-    cs_select(ALL_DISPLAYS);
-    esp_err_t rc = esp_lcd_panel_disp_on_off(panel_, true);
-    cs_select(NO_DISPLAY);
-    STEP_("on", rc);
     STEP_("backlight", backlight_init());
     return ESP_OK;
 }

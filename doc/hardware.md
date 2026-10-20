@@ -61,6 +61,17 @@ firmware.  The stock build uses the TFT_eSPI library's own `User_Setup.h`
 leaves it low.  An active-low reset (the esp_lcd default) holds the
 displays in reset, and every SPI write still succeeds.
 
+Stock display SPI settings, matched by this firmware
+(`components/uih_drivers/src/display.c`, `uih_core/src/st7789.c`):
+
+- SPI mode 3 (TFT_eSPI uses it for every ST7789), 40 MHz, MSB first.
+- Reset: high for 10 ms, then low, then software reset and 150 ms.
+- TFT_eSPI's full ST7789 setup (porch, gate and VCOM voltages, VRH/VDV,
+  power control, frame rate, gamma, inversion on) sent with all three CS
+  lines low, then rotation 2: `MADCTL` 0xC8 and rows 80..319.
+- Backlight PWM: 10 bits, 800 / 1023 (the stock default brightness), 193 Hz
+  at the stock 160 MHz CPU.
+
 
 ## STM8 base MCU (I2C address 0x51)
 
