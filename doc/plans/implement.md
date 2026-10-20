@@ -421,3 +421,27 @@ JS220, CH3 JS320); probe the channel map before relying on it.
   full panel init (voltages, porch, gamma), software reset after the
   active-high reset pulse, and the stock backlight PWM (`31145ca`).
   **Stages 0-5 complete.**
+- 2026-10-20: **Packaging and CI.**  PyPI distribution
+  `usb_insight_hub_jetperch` (not the official software's name; import
+  name `usb_insight_hub`).  GitHub Actions (`packaging.yml`):
+  - REUSE lint;
+  - Python tests on Linux, Windows and macOS (3.10, 3.14);
+  - firmware core host tests;
+  - the firmware built in the `espressif/idf:v6.1` container and bundled in
+    the wheel;
+  - on `v*` tags, PyPI trusted publishing plus a GitHub release with
+    `usb_insight_hub_firmware-<version>.zip`.
+
+  0.1.0 published and tested from PyPI on the agent hub (CLI, API, soak,
+  update loop).  0.1.1 on `main` (`458bb25`, untagged):
+  - Windows discovery (pyserial sets no product string there; such ports
+    are probed);
+  - bundled firmware: `uih flash` with no arguments;
+  - firmware and package versions locked together.
+
+  The CI-built 0.1.1 wheel flashed the agent hub (`git 458bb25`): 1,800
+  commands with 0 drops, and the stream check was clean.  CRLF checkouts
+  broke the byte-exact test vectors on Windows; `.gitattributes` marks
+  them `-text`.
+- 2026-10-20: **Stage 6 ready:** `joulescope_ci/doc/plans/usb_insight_hub.md`
+  is the self-contained plan.  Hubs for every station are on order.
