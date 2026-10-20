@@ -353,3 +353,40 @@ JS220, CH3 JS320); probe the channel map before relying on it.
   the stock firmware booted with all ports powered.  Finding: esptool 5's
   RTS hard reset does not reset the chip over USB-Serial-JTAG while the
   flasher stub runs; leaving the bootloader uses `--after watchdog-reset`.
+- 2026-10-20: **Stage 1 complete.**  Protocol v1 client (`client.py`) with
+  idempotent retries, the stock-firmware backend (`stock.py`), simulators
+  for both (`sim.py`), `soak.py` and shared test vectors.  Stock baseline
+  (unverified `set`, 300 cycles x 3 ports x 2): 43 of 1800 commands dropped
+  (2.39%), latency p50 51 ms, p99 101 ms.
+- 2026-10-20: **Stage 2 complete** (except the manual checks below).
+  Firmware `uih_core` (pure C, host tests) and `uih_drivers` (ESP-IDF).
+  Acceptance on the agent hub:
+  - `soak.py`, 10,000 cycles x 3 ports: 60,000 commands, 0 dropped,
+    0 errors, 0 timeouts; latency p50 2.9 ms, p99 3.9 ms, max 10.2 ms
+    (display task running).
+  - The `reset` op and every reflash keep the port states (port 2 off and
+    port 3 data off survived a reset).
+  - Update path: `bootloader` op, flash, boot (`uih flash`, about 3 s).
+  - Findings: esptool's watchdog reset reports `ESP_RST_POWERON`, so the
+    power-up defaults use the STM8 first-boot flag (or power-on with all
+    ports off); bytes left by esptool in the line assembler gave one
+    `format` error, so the host sends `\n` on open; pyserial `read(n)`
+    waits for its timeout, which had added 50 ms to every response.
+  - **Manual, pending (needs a person at the hub):** button presses produce
+    `button` events, and a hub power-up turns all ports on (time to
+    ports-on).
+- 2026-10-20: **Stage 3 in progress.**  PAC1943 meters, `stream` and fault
+  events were built in Stage 2.  Finding: the PAC channels are routed
+  3, 1, 2 to ports 1, 2, 3 (stock `meterBoardMap`); fixed and confirmed by
+  powering ports one at a time.  `stream_check.py` added; the 1-hour 10 Hz
+  run and the stock comparison (via `update_loop.py`) are next.
+- 2026-10-20: **Stage 4 implemented.**  Text layout, change detection,
+  5 x 7 font and band rendering in `uih_core` (host tests, 100% lines);
+  ST7789 driver shares one panel across the three CS lines; the display
+  task draws at 2 Hz from a mutex-protected copy of the hub state.  Latency
+  unchanged with the display running (soak above).  **Manual, pending:**
+  look at the displays (orientation, colors, inversion).
+- 2026-10-20: **Stage 5 tooling.**  `update_loop.py` (update, verify,
+  restore, verify, compare meters); hardware run pending.
+- 2026-10-20: **Stage 6 plan** written:
+  `joulescope_ci/doc/plans/usb_insight_hub.md`.

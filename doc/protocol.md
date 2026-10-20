@@ -22,7 +22,8 @@ Every message is one line:
 
 - `<json>` is a single JSON object, UTF-8, with no line breaks.
 - `<crc>` is the CRC-32 (IEEE 802.3, as `zlib.crc32`) of the `<json>` bytes,
-  as exactly 8 lowercase hexadecimal digits.
+  as exactly 8 hexadecimal digits.  Senders use lowercase; receivers also
+  accept uppercase.
 - The separator is the **last** `*` on the line, so `*` may appear inside
   JSON strings.
 - A trailing `\r` before `\n` is ignored.
@@ -97,6 +98,11 @@ Responses, status and events describe a port with this object:
 | `mV` | integer | port voltage in mV (0 until the meter has a reading) |
 | `mA` | number | port current in mA, one decimal; positive flows to the device |
 
+`power`, `data` and `fault` are current when the message is sent.  `mV`
+and `mA` are the latest meter reading: the meter averages over its refresh
+interval and the hub reads it every 50 ms, so readings trail a power
+change by up to about 100 ms.
+
 ### `rsp`: response to a request
 
 ```
@@ -161,6 +167,10 @@ Sent at the `stream` rate:
     `defaults` (bool: whether the firmware applied the power-up defaults).
   - `button`: a button toggled a port; includes `port` and `power`.
   - `fault`: a port's fault flag changed; includes `port` and `fault`.
+  - `stm8_reset`: the STM8 restarted (its first-boot flag was set while
+    running, for example after a supply glitch) and turned every port off;
+    the firmware reapplied the power-up defaults.  Includes `defaults`
+    (`true`).
 
 The firmware reports faults only: it does not turn a faulted port off.
 The load switch limits the current on its own.

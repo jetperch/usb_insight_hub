@@ -45,6 +45,37 @@ vendor and product ID alone: every Espressif development board uses
 303a:1001 too.
 
 
+## Firmware
+
+Build with ESP-IDF v6.1 (`firmware/esp32s3`), then install it on a hub
+running either the stock firmware or this firmware:
+
+```bash
+cd firmware/esp32s3
+. ~/esp/esp-idf-v6.1/export.sh && idf.py build
+cd ../..
+python tools/flash.py --serial <MAC> firmware/esp32s3/build
+uih --serial <MAC> info
+```
+
+`flash.py` enters the ROM bootloader (1200-baud touch for stock, the
+`bootloader` op for this firmware), writes the bootloader, partition table
+and app, erases `otadata`, and reboots.  The port states survive the
+update: the STM8 holds them while the ESP32-S3 restarts.
+
+Host-side C unit tests (pure `uih_core`, no ESP-IDF):
+
+```bash
+cmake -S firmware/esp32s3/test/host -B build/host && cmake --build build/host
+ctest --test-dir build/host --output-on-failure
+gcovr -r firmware/esp32s3/components/uih_core build/host   # coverage
+```
+
+Hardware checks: `tools/soak.py` (dropped commands and latency) and
+`tools/update_loop.py <build_dir> <backup>` (update, verify, restore stock,
+verify; also compares the meter readings of both firmwares).
+
+
 ## Recovery
 
 Every hub can return to its stock firmware from a full-flash backup:

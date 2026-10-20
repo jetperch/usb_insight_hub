@@ -105,7 +105,10 @@ starting at 0x20 and reads five bytes starting at 0x20 (CH1..CH3, `CCSUM`,
 ## PAC1943 power monitor (I2C address 0x10)
 
 - Product ID register 0xFD reads 0x6A; revision ID at 0xFF.
-- Channels 1..3 measure the three ports (channel 4 disabled).
+- Channels 1..3 measure the three ports (channel 4 disabled), but not in
+  order: channel 3 measures port 1, channel 1 port 2, and channel 2 port 3
+  (stock `meterBoardMap` = {2, 0, 1}; confirmed on hardware 2026-10-20 by
+  powering one port at a time).
 - Stock configuration:
   - `CTRL` (0x01) = 0x0010: channel 4 disabled, 1024-sample adaptive
     accumulation, alert pins as alerts.

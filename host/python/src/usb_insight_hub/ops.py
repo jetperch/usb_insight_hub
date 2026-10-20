@@ -59,3 +59,18 @@ def enter_bootloader(serial, finder=discover.find, waiter=discover.wait,
     if mac != serial:
         raise RuntimeError(f'bootloader on {port.device} reports MAC {mac}, expected {serial}')
     return port.device
+
+
+def open_any(serial, **kwargs):
+    """Open the hub ``serial`` with the backend for its firmware.
+
+    :return: a client.Hub (Jetperch firmware) or stock.StockHub.
+    """
+    from .client import Hub
+    from .stock import StockHub
+    ports = discover.find(serial)
+    if not ports:
+        raise LookupError(f'hub {discover.normalize_serial(serial)} not found')
+    port = ports[0]
+    cls = StockHub if port.kind == discover.KIND_STOCK else Hub
+    return cls(port.device, **kwargs)

@@ -1,0 +1,14 @@
+ok	{"op":"ping","seq":1}*1c8550d4
+ok	{"op":"ping","seq":1}*1c8550d4
+ok	{"msg":"a*b","op":"ping","seq":2}*1fb7391b
+crc	{"op":"ping","seq":1}*1c8550d5
+crc	{"op":"ping","seq":9}*1C8550D4
+format	{"op":"ping","seq":1}
+format	{"op":"ping","seq":1}*1234567
+format	{"op":"ping","seq":1}*123456789
+format	{"op":"ping","seq":1}*1234567g
+format	
+format	ESP-ROM:esp32s3-20210327
+parse	{"op":"ping",*ef05852a
+parse	[1,2,3]*fd6db3e9
+parse	not json*c68ccb66

@@ -24,5 +24,7 @@ optional when exactly one hub is connected.
 | `restore.py PATH` | Write a whole-flash backup and boot it |
 | `flash.py BUILD_DIR` | Install Jetperch firmware from an ESP-IDF build directory |
 | `soak.py` | Toggle port power repeatedly and report dropped commands |
+| `update_loop.py BUILD_DIR BACKUP` | Repeat: install, verify, restore stock, verify (`--cycles`, default 20) |
+| `stream_check.py` | Stream status messages and count lost ones (`--rate`, `--duration`) |
 
 A full backup takes about 12 minutes.

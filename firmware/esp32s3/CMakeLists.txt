@@ -1,0 +1,7 @@
+# SPDX-FileCopyrightText: Copyright 2026 Jetperch LLC
+# SPDX-License-Identifier: Apache-2.0
+
+cmake_minimum_required(VERSION 3.22)
+set(PROJECT_VER "0.1.0")
+include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+project(uih_firmware)

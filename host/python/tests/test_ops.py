@@ -95,3 +95,18 @@ def test_rom_never_answers():
     env = Env(STOCK, macs=[err] * 10)
     with pytest.raises(ops.esp.EsptoolError):
         env.run(attempts=3)
+
+
+def test_open_any_selects_backend(monkeypatch):
+    from usb_insight_hub import client, stock
+    made = []
+    monkeypatch.setattr(stock, 'StockHub', lambda device, **kw: made.append(('stock', device)))
+    monkeypatch.setattr(client, 'Hub', lambda device, **kw: made.append(('v1', device)))
+    monkeypatch.setattr(ops.discover, 'find', lambda serial=None: [STOCK])
+    ops.open_any(SERIAL)
+    monkeypatch.setattr(ops.discover, 'find', lambda serial=None: [JTAG])
+    ops.open_any(SERIAL)
+    monkeypatch.setattr(ops.discover, 'find', lambda serial=None: [])
+    with pytest.raises(LookupError):
+        ops.open_any(SERIAL)
+    assert made == [('stock', '/dev/ttyACM0'), ('v1', '/dev/ttyACM1')]

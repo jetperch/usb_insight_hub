@@ -4,10 +4,12 @@
 """The ``uih`` command line tool."""
 
 import argparse
+import json
 import os
 import sys
+import time
 
-from . import discover, esp, ops
+from . import discover, esp, ops, soak, stream_check, update_loop
 from .version import __version__
 
 # ESP-IDF build outputs, relative to the build directory.
@@ -66,12 +68,143 @@ def _cmd_restore(args):
     _tool(args.serial).restore(args.path)
 
 
-def _cmd_flash(args):
-    files = [os.path.join(args.build_dir, f) for f in _BUILD_FILES]
+def _build_files(build_dir):
+    files = [os.path.join(build_dir, f) for f in _BUILD_FILES]
     for f in files:
         if not os.path.isfile(f):
             raise CliError(f'missing build output: {f}')
-    _tool(args.serial).flash_firmware(*files)
+    return files
+
+
+def _cmd_flash(args):
+    _tool(args.serial).flash_firmware(*_build_files(args.build_dir))
+
+
+def _cmd_update_loop(args):
+    files = _build_files(args.build_dir)
+    with open(os.path.join(args.build_dir, 'project_description.json')) as f:
+        version = json.load(f)['project_version']
+
+    def progress(r):
+        status = 'ok' if r.ok else f'FAIL {r.error}'
+        print(f'cycle {r.cycle + 1}: {status}; update {r.update_s:.1f} s, '
+              f'restore {r.restore_s:.1f} s, |dV| {r.max_delta_mv()} mV, '
+              f'|dI| {r.max_delta_ma():.1f} mA', flush=True)
+    results = update_loop.run(_select(args.serial), files, args.backup, args.cycles,
+                              expect_fw=version, progress=progress)
+    print(update_loop.summary(results))
+    if not all(r.ok for r in results):
+        raise CliError('update loop failed')
+
+
+def _onoff(text):
+    if text in ('on', '1', 'true'):
+        return True
+    if text in ('off', '0', 'false'):
+        return False
+    raise argparse.ArgumentTypeError(f'expected on or off, got {text!r}')
+
+
+def _port_arg(text):
+    if text == 'all':
+        return 'all'
+    if text in ('1', '2', '3'):
+        return int(text)
+    raise argparse.ArgumentTypeError(f'expected 1, 2, 3 or all, got {text!r}')
+
+
+def _print_ports(ports):
+    print(f'{"port":>4} {"power":>5} {"data":>5} {"fault":>5} {"mV":>6} {"mA":>8}')
+    for p in ports:
+        print(f'{p.port:>4} {("on" if p.power else "off"):>5} '
+              f'{("on" if p.data else "off"):>5} {("yes" if p.fault else "no"):>5} '
+              f'{p.mV:>6} {p.mA:>8.1f}')
+
+
+def _hub(serial):
+    return ops.open_any(_select(serial))
+
+
+def _cmd_info(args):
+    hub = _hub(args.serial)
+    try:
+        print(json.dumps(hub.info(), indent=2))
+    finally:
+        hub.close()
+
+
+def _cmd_status(args):
+    hub = _hub(args.serial)
+    try:
+        ports, _ = hub.status()
+        _print_ports(ports)
+    finally:
+        hub.close()
+
+
+def _cmd_set(args):
+    if args.power is None and args.data is None:
+        raise CliError('set requires --power and/or --data')
+    hub = _hub(args.serial)
+    try:
+        _print_ports(hub.set(args.port, power=args.power, data=args.data))
+    finally:
+        hub.close()
+
+
+def _cmd_stream(args):
+    hub = _hub(args.serial)
+    if not hasattr(hub, 'stream'):
+        hub.close()
+        raise CliError('stream requires the Jetperch firmware')
+    try:
+        hub.on_status(lambda m: print(m['n'], m['t'], ' '.join(
+            f'{p.port}:{"on" if p.power else "off"}:{p.mV}mV:{p.mA:.1f}mA'
+            for p in m['ports']), flush=True))
+        hub.on_event(lambda m: print('event', json.dumps(m), flush=True))
+        hub.stream(args.rate)
+        time.sleep(args.duration)
+        hub.stream(0)
+        print(f'counters: {hub.counters}')
+    finally:
+        hub.close()
+
+
+def _cmd_stream_check(args):
+    hub = _hub(args.serial)
+    if not hasattr(hub, 'stream'):
+        hub.close()
+        raise CliError('stream-check requires the Jetperch firmware')
+    last = [time.monotonic()]
+
+    def progress(r):
+        if time.monotonic() - last[0] >= 60:
+            last[0] = time.monotonic()
+            print(r.summary(), flush=True)
+    try:
+        result = stream_check.run(hub, args.rate, args.duration, progress=progress)
+    finally:
+        hub.close()
+    print(result.summary())
+    if not result.ok:
+        raise CliError('stream lost messages or ran slow')
+
+
+def _cmd_soak(args):
+    hub = _hub(args.serial)
+    ports = tuple(args.ports) if args.ports else (1, 2, 3)
+
+    def progress(cycle, result):
+        if args.verbose_progress and (cycle + 1) % args.verbose_progress == 0:
+            print(f'cycle {cycle + 1}: {result.summary()}', flush=True)
+    try:
+        result = soak.run(hub, args.cycles, ports=ports, dwell=args.dwell,
+                          settle=args.settle, raw=args.raw, progress=progress)
+    finally:
+        hub.close()
+    print(result.summary())
+    if not result.ok:
+        raise CliError('soak saw dropped commands, errors or timeouts')
 
 
 def parser():
@@ -98,6 +231,34 @@ def parser():
     add('restore', _cmd_restore, 'write a whole-flash backup and boot it').add_argument('path')
     add('flash', _cmd_flash, 'install firmware from an ESP-IDF build directory').add_argument(
         'build_dir')
+    s = add('update-loop', _cmd_update_loop,
+            'repeat: flash this firmware, verify, restore the stock backup, verify')
+    s.add_argument('build_dir')
+    s.add_argument('backup', help='whole-flash stock backup')
+    s.add_argument('--cycles', type=int, default=20)
+    add('info', _cmd_info, 'show firmware and hub information')
+    add('status', _cmd_status, 'show the port states')
+    s = add('set', _cmd_set, 'set port power and/or data')
+    s.add_argument('port', type=_port_arg, help='1, 2, 3 or all')
+    s.add_argument('--power', type=_onoff, help='on or off')
+    s.add_argument('--data', type=_onoff, help='on or off')
+    s = add('stream', _cmd_stream, 'print the status stream (Jetperch firmware)')
+    s.add_argument('--rate', type=int, default=10, help='status messages per second')
+    s.add_argument('--duration', type=float, default=10.0, help='seconds')
+    s = add('stream-check', _cmd_stream_check,
+            'stream and verify that no status message is lost (Jetperch firmware)')
+    s.add_argument('--rate', type=int, default=10, help='status messages per second')
+    s.add_argument('--duration', type=float, default=60.0, help='seconds')
+    s = add('soak', _cmd_soak, 'toggle port power and count dropped commands')
+    s.add_argument('--cycles', type=int, default=100)
+    s.add_argument('--ports', type=int, nargs='+', choices=(1, 2, 3))
+    s.add_argument('--dwell', type=float, default=0.05, help='seconds after each batch')
+    s.add_argument('--settle', type=float, default=0.25,
+                   help='seconds before reading the ports back')
+    s.add_argument('--raw', action='store_true',
+                   help='unverified commands (measure the stock firmware drop rate)')
+    s.add_argument('--progress', dest='verbose_progress', type=int, default=0,
+                   help='print a summary every N cycles')
     return p
 
 
