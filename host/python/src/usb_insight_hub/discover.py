@@ -16,6 +16,7 @@ VID = 0x303A
 PID = 0x1001
 KIND_STOCK = 'stock'   # stock firmware: TinyUSB CDC, "InsightHUB Controller"
 KIND_JTAG = 'jtag'     # USB-Serial-JTAG: Jetperch firmware or ROM bootloader
+KIND_UNKNOWN = 'unknown'   # no USB product string (pyserial on Windows): probe it
 
 _PRODUCTS = {
     'InsightHUB Controller': KIND_STOCK,
@@ -51,7 +52,8 @@ def find(serial=None, ports=None):
     for p in ports:
         if p.vid != VID or p.pid != PID:
             continue
-        kind = _PRODUCTS.get((p.product or '').strip())
+        product = (p.product or '').strip()
+        kind = _PRODUCTS.get(product) if product else KIND_UNKNOWN
         if kind is None:
             continue
         sn = normalize_serial(p.serial_number)
@@ -65,13 +67,15 @@ def wait(serial, kind, timeout=10.0, lister=None, sleep=time.sleep,
          clock=time.monotonic):
     """Wait for the hub ``serial`` to enumerate as ``kind``.
 
+    A port of unknown kind (no product string) also matches.
+
     :raise TimeoutError: if it does not appear within ``timeout`` seconds.
     """
     lister = lister or _list_ports
     deadline = clock() + timeout
     while True:
         for p in find(serial, ports=lister()):
-            if p.kind == kind:
+            if p.kind in (kind, KIND_UNKNOWN):
                 return p
         if clock() >= deadline:
             raise TimeoutError(f'hub {normalize_serial(serial)} did not appear as {kind}')

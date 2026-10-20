@@ -10,6 +10,16 @@ and tools.
 
 ---
 
+## 0.1.1
+
+unreleased
+
+* Windows: find hubs without a USB product string (pyserial never sets it
+  on Windows).  Such ports are probed: `open_any` tries this firmware,
+  then the stock API; `enter_bootloader` tries the `bootloader` op, then
+  the 1200-baud touch, and looks the port up again for the ROM.
+
+
 ## 0.1.0
 
 2026 Oct 20

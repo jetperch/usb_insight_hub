@@ -65,3 +65,20 @@ def test_wait_timeout():
         discover.wait('B43A45B7BFBC', discover.KIND_JTAG, timeout=3.0,
                       lister=lambda: [STOCK], sleep=lambda s: None,
                       clock=lambda: next(clock))
+
+
+def test_find_without_product_string():
+    # pyserial on Windows never sets product: the firmware is unknown until
+    # probed (both firmwares and the ROM share VID, PID and serial number).
+    win = _port('COM7', 'B43A45B7BFBC', None)
+    found = discover.find(ports=[win, OTHER])
+    assert [(p.device, p.serial, p.kind) for p in found] == [
+        ('COM7', 'B43A45B7BFBC', discover.KIND_UNKNOWN)]
+    assert [] == discover.find(serial='AABBCCDDEEFF', ports=[win])
+
+
+def test_wait_accepts_unknown_kind():
+    win = _port('COM7', 'B43A45B7BFBC', None)
+    p = discover.wait('B43A45B7BFBC', discover.KIND_STOCK, timeout=1.0,
+                      lister=lambda: [win], sleep=lambda s: None)
+    assert p.device == 'COM7'
