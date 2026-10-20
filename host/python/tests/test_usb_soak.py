@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: Copyright 2026 Jetperch LLC
 # SPDX-License-Identifier: Apache-2.0
 
+import sys
+
 import pytest
 
 from usb_insight_hub import usb_soak
@@ -174,6 +176,7 @@ def test_stops_after_consecutive_failures():
     assert 'stopped' in r.summary()
 
 
+@pytest.mark.skipif(sys.platform == 'win32', reason='sysfs names contain ":"')
 def test_linux_lister(tmp_path):
     def dev(name, vid, pid, serial=None):
         d = tmp_path / name
