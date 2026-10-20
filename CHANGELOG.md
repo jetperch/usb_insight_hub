@@ -12,7 +12,7 @@ and tools.
 
 ## 0.1.0
 
-unreleased
+2026 Oct 20
 
 * Started the project: hardware reference, protocol v1, and recovery tools
   (`doc/plans/implement.md`).
