@@ -445,3 +445,16 @@ JS220, CH3 JS320); probe the channel map before relying on it.
   them `-text`.
 - 2026-10-20: **Stage 6 ready:** `joulescope_ci/doc/plans/usb_insight_hub.md`
   is the self-contained plan.  Hubs for every station are on order.
+- 2026-10-20: **USB-level soak (`uih usb-soak`).**  Each cycle turns the
+  port off and requires the device to disconnect, turns it on and
+  requires it to enumerate and stay connected for 3 s.  The other ports'
+  devices are watched and must never drop.  Agent hub, firmware 0.1.1:
+  - JS320 8W2A on port 3: 100/100, then 1,000/1,000 with 0 failures
+    (disconnect max 0.31 s, reconnect max 0.64 s).
+  - JS220 002122 on port 2: 100/100 with 0 failures (disconnect max
+    0.26 s, reconnect max 0.62 s).
+
+  The kernel log agrees: one disconnect per cycle on the cycled port, none
+  on the watched ports, and no enumeration errors.  The hub did not reset
+  during the runs (uptime continuous).  The earlier 60,000-command soak
+  checked the STM8 read-back only (USB data off, 30 ms off time).
