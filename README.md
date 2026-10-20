@@ -23,6 +23,15 @@ and current.  See `doc/plans/implement.md` for the design and status.
 
 ## Host setup
 
+The host package is on PyPI as `usb_insight_hub_jetperch` (import name
+`usb_insight_hub`, command `uih`):
+
+```bash
+pip install usb_insight_hub_jetperch
+```
+
+For development, from this repository:
+
 ```bash
 python3 -m venv host/python/.venv
 host/python/.venv/bin/pip install -e "host/python[test]"
@@ -76,6 +85,15 @@ Hardware checks: `tools/soak.py` (dropped commands and latency) and
 verify; also compares the meter readings of both firmwares).
 
 
+## Releases
+
+GitHub Actions (`.github/workflows/packaging.yml`) runs REUSE lint, the
+Python tests (Linux, Windows, macOS), the firmware core host tests, and
+builds the sdist and wheel on every push.  Pushing a `vX.Y.Z` tag that
+matches `host/python/src/usb_insight_hub/version.py` also publishes to
+PyPI (trusted publishing) and attaches the packages to a GitHub release.
+
+
 ## Recovery
 
 Every hub can return to its stock firmware from a full-flash backup:
@@ -91,5 +109,6 @@ Both enter the ROM bootloader automatically, from the stock firmware
 
 ## License
 
-Apache-2.0 (`LICENSES/Apache-2.0.txt`).  Hardware knowledge derived from the
-MIT-licensed stock firmware is attributed in `NOTICE`.
+Apache-2.0 (`LICENSES/Apache-2.0.txt`).  `NOTICE` attributes the hardware
+knowledge derived from the MIT-licensed stock firmware and the ST7789 setup
+from TFT_eSPI (BSD-2-Clause).

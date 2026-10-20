@@ -1,0 +1,140 @@
+# SPDX-FileCopyrightText: Copyright 2026 Jetperch LLC
+# SPDX-License-Identifier: Apache-2.0
+
+# Test, build and (on v* tags) publish the usb_insight_hub_jetperch
+# Python package.  The package is pure Python: one sdist and one wheel.
+
+name: Packaging
+
+on: ['push', 'pull_request']
+
+env:
+  PYTHON_VERSION: '3.14'
+
+jobs:
+
+  reuse:
+    name: REUSE compliance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install reuse
+        run: python -m pip install "reuse[charset-normalizer]==6.2.0"
+
+      - name: Lint
+        run: python -m reuse lint
+
+  test_python:
+    name: Python tests (${{ matrix.os }}, ${{ matrix.python_version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python_version: ['3.10', '3.14']
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python_version }}
+
+      - name: Install the package and test tools
+        run: python -m pip install "./host/python[test]"
+
+      - name: Run the unit tests
+        working-directory: host/python
+        run: python -m pytest -v
+
+  test_firmware_host:
+    name: Firmware core tests (host gcc)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
+
+      - name: Build
+        run: |
+          cmake -S firmware/esp32s3/test/host -B build/host
+          cmake --build build/host
+
+      - name: Run the unit tests
+        run: ctest --test-dir build/host --output-on-failure
+
+  build_python:
+    name: Build sdist and wheel
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install build tools
+        run: python -m pip install build twine
+
+      - name: Build
+        run: python -m build host/python -o dist
+
+      - name: Check the package metadata
+        run: python -m twine check --strict dist/*
+
+      - name: Check the tag matches the package version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          ls dist/usb_insight_hub_jetperch-${GITHUB_REF_NAME#v}-py3-none-any.whl
+
+      - name: Upload python packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: python_packages
+          path: dist/*
+          if-no-files-found: error
+
+  publish_python:
+    name: Publish python packages to PyPI
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs:
+      - reuse
+      - test_python
+      - test_firmware_host
+      - build_python
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # PyPI trusted publishing
+      contents: write   # GitHub release
+
+    steps:
+      - name: Download python packages
+        uses: actions/download-artifact@v8
+        with:
+          name: python_packages
+          path: dist/
+
+      - name: Display artifacts
+        shell: bash
+        run: ls dist/*
+
+      - name: Publish packages to PyPI
+        uses: pypa/gh-action-pypi-publish@v1.14.2
+        with:
+          print-hash: true
+
+      - name: Publish release assets
+        uses: softprops/action-gh-release@v3
+        with:
+          files: dist/*

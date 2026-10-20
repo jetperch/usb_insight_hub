@@ -1,6 +1,7 @@
 /*
  * SPDX-FileCopyrightText: Copyright 2026 Jetperch LLC
- * SPDX-License-Identifier: Apache-2.0
+ * SPDX-FileCopyrightText: Copyright (c) 2023 Bodmer (TFT_eSPI ST7789 init values)
+ * SPDX-License-Identifier: Apache-2.0 AND BSD-2-Clause
  */
 
 #include "uih/st7789.h"

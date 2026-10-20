@@ -22,3 +22,6 @@ and tools.
   events, and a minimal V/I display.
 * Host package: protocol v1 client, stock-firmware backend, simulators,
   and the `uih` commands `soak`, `stream-check` and `update-loop`.
+* Python package published to PyPI as `usb_insight_hub_jetperch` (not the
+  official USB Insight Hub software); GitHub Actions for tests, builds and
+  tagged releases.
