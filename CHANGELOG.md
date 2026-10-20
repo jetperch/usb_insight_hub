@@ -10,6 +10,15 @@ and tools.
 
 ---
 
+## 0.1.2
+
+unreleased
+
+* `uih usb-soak`: power-cycles a port and checks at the USB level that its
+  device disconnects, enumerates again and stays connected, and that
+  devices on other ports never drop (Linux, sysfs).
+
+
 ## 0.1.1
 
 2026 Oct 20

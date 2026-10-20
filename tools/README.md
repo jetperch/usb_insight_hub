@@ -25,6 +25,7 @@ optional when exactly one hub is connected.
 | `flash.py [BUILD_DIR]` | Install the bundled firmware (release packages), or one from an ESP-IDF build directory |
 | `bundle_firmware.py BUILD_DIR` | Release builds: bundle a firmware build into the host package |
 | `soak.py` | Toggle port power repeatedly and report dropped commands |
+| `usb_soak.py` | Power-cycle a port; its USB device must disconnect, reconnect and stay connected (Linux) |
 | `update_loop.py BUILD_DIR BACKUP` | Repeat: install, verify, restore stock, verify (`--cycles`, default 20) |
 | `stream_check.py` | Stream status messages and count lost ones (`--rate`, `--duration`) |
 

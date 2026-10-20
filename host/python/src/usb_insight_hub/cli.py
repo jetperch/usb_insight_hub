@@ -9,7 +9,7 @@ import os
 import sys
 import time
 
-from . import bundled, discover, esp, ops, soak, stream_check, update_loop
+from . import bundled, discover, esp, ops, soak, stream_check, update_loop, usb_soak
 from .version import __version__
 
 class CliError(Exception):
@@ -193,6 +193,30 @@ def _cmd_stream_check(args):
         raise CliError('stream lost messages or ran slow')
 
 
+def _cmd_usb_soak(args):
+    try:
+        device = usb_soak.parse_device(args.device)
+        watch = [usb_soak.parse_device(w) for w in args.watch or []]
+    except ValueError as ex:
+        raise CliError(str(ex))
+    hub = _hub(args.serial)
+
+    def progress(cycle, r):
+        if args.verbose_progress and (cycle + 1) % args.verbose_progress == 0:
+            print(f'cycle {cycle + 1}: {r.summary()}', flush=True)
+    try:
+        result = usb_soak.run(hub, args.port, device, args.cycles, off_s=args.off,
+                              on_s=args.on, off_timeout=args.off_timeout, on_timeout=args.on_timeout,
+                              watch=watch, progress=progress)
+    finally:
+        hub.close()
+    for failure in result.failures:
+        print(failure)
+    print(result.summary())
+    if not result.ok:
+        raise CliError('the USB device did not disconnect or reconnect as expected')
+
+
 def _cmd_soak(args):
     hub = _hub(args.serial)
     ports = tuple(args.ports) if args.ports else (1, 2, 3)
@@ -253,6 +277,23 @@ def parser():
             'stream and verify that no status message is lost (Jetperch firmware)')
     s.add_argument('--rate', type=int, default=10, help='status messages per second')
     s.add_argument('--duration', type=float, default=60.0, help='seconds')
+    s = add('usb-soak', _cmd_usb_soak,
+            'power-cycle a port and check that its USB device disconnects and returns '
+            '(Linux)')
+    s.add_argument('--port', type=int, required=True, choices=(1, 2, 3))
+    s.add_argument('--device', required=True, help='VID:PID[:SERIAL] on the port, hex')
+    s.add_argument('--watch', action='append',
+                   help='VID:PID[:SERIAL] on another port that must stay connected')
+    s.add_argument('--cycles', type=int, default=100)
+    s.add_argument('--off', type=float, default=2.0, help='minimum seconds off')
+    s.add_argument('--on', type=float, default=3.0,
+                   help='seconds the device must stay connected after it enumerates')
+    s.add_argument('--off-timeout', type=float, default=5.0,
+                   help='seconds allowed to disconnect')
+    s.add_argument('--on-timeout', type=float, default=20.0,
+                   help='seconds allowed to enumerate')
+    s.add_argument('--progress', dest='verbose_progress', type=int, default=0,
+                   help='print a summary every N cycles')
     s = add('soak', _cmd_soak, 'toggle port power and count dropped commands')
     s.add_argument('--cycles', type=int, default=100)
     s.add_argument('--ports', type=int, nargs='+', choices=(1, 2, 3))

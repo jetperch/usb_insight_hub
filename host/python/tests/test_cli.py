@@ -202,3 +202,28 @@ def test_stream_check_cmd(simhub, monkeypatch, capsys):
                         lambda hub, rate, duration, progress=None:
                         stream_check.Result(rate, duration, received=1, gaps=3))
     assert 1 == cli.main(['stream-check'])
+
+
+def test_usb_soak_cmd(simhub, monkeypatch, capsys):
+    from usb_insight_hub import usb_soak
+    seen = {}
+
+    def run(hub, port, device, cycles, off_s, on_s, off_timeout, on_timeout, watch, progress):
+        seen.update(port=port, device=str(device), cycles=cycles, off_s=off_s, on_s=on_s,
+                    watch=[str(w) for w in watch])
+        r = usb_soak.Result(cycles=cycles)
+        progress(cycles - 1, r)
+        return r
+
+    monkeypatch.setattr(cli.usb_soak, 'run', run)
+    assert 0 == cli.main(['usb-soak', '--port', '3', '--device', '16d0:135a:8W2A',
+                          '--watch', '16d0:10ba:002122', '--cycles', '100',
+                          '--progress', '50'])
+    assert seen == {'port': 3, 'device': '16d0:135a:8W2A', 'cycles': 100, 'off_s': 2.0,
+                    'on_s': 3.0,
+                    'watch': ['16d0:10ba:002122']}
+    assert '100 cycles, 0 failures' in capsys.readouterr().out
+    monkeypatch.setattr(cli.usb_soak, 'run',
+                        lambda *a, **k: usb_soak.Result(cycles=1, failures=['x']))
+    assert 1 == cli.main(['usb-soak', '--port', '3', '--device', '16d0:135a'])
+    assert 1 == cli.main(['usb-soak', '--port', '3', '--device', 'bogus'])
