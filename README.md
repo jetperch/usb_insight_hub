@@ -56,8 +56,20 @@ vendor and product ID alone: every Espressif development board uses
 
 ## Firmware
 
-Build with ESP-IDF v6.1 (`firmware/esp32s3`), then install it on a hub
-running either the stock firmware or this firmware:
+Each release's Python package carries the firmware built by CI with it, so
+installing a hub needs no ESP-IDF:
+
+```bash
+pip install usb_insight_hub_jetperch
+uih --serial <MAC> flash          # installs the bundled firmware
+uih --serial <MAC> info
+```
+
+The GitHub release also has the images as
+`usb_insight_hub_firmware-<version>.zip`.
+
+To build it yourself, use ESP-IDF v6.1 (`firmware/esp32s3`), then install
+it on a hub running either the stock firmware or this firmware:
 
 ```bash
 cd firmware/esp32s3
@@ -89,7 +101,9 @@ verify; also compares the meter readings of both firmwares).
 
 GitHub Actions (`.github/workflows/packaging.yml`) runs REUSE lint, the
 Python tests (Linux, Windows, macOS), the firmware core host tests, and
-builds the sdist and wheel on every push.  Pushing a `vX.Y.Z` tag that
+builds the firmware (ESP-IDF v6.1 container) and the sdist and wheel, with
+the firmware bundled, on every push.  The firmware version
+(`firmware/esp32s3/CMakeLists.txt`) must equal the package version.  Pushing a `vX.Y.Z` tag that
 matches `host/python/src/usb_insight_hub/version.py` also publishes to
 PyPI (trusted publishing) and attaches the packages to a GitHub release.
 

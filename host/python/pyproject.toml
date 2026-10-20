@@ -41,5 +41,9 @@ version = {attr = "usb_insight_hub.version.__version__"}
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+# Placed by the release build (.github/workflows/packaging.yml).
+usb_insight_hub = ["fw/*.bin", "fw/manifest.json"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

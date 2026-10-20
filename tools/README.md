@@ -22,7 +22,8 @@ optional when exactly one hub is connected.
 | `exit_bootloader.py` | Leave the ROM bootloader and boot the application |
 | `backup.py PATH` | Back up the whole 8 MB flash, verify it, and boot again |
 | `restore.py PATH` | Write a whole-flash backup and boot it |
-| `flash.py BUILD_DIR` | Install Jetperch firmware from an ESP-IDF build directory |
+| `flash.py [BUILD_DIR]` | Install the bundled firmware (release packages), or one from an ESP-IDF build directory |
+| `bundle_firmware.py BUILD_DIR` | Release builds: bundle a firmware build into the host package |
 | `soak.py` | Toggle port power repeatedly and report dropped commands |
 | `update_loop.py BUILD_DIR BACKUP` | Repeat: install, verify, restore stock, verify (`--cycles`, default 20) |
 | `stream_check.py` | Stream status messages and count lost ones (`--rate`, `--duration`) |

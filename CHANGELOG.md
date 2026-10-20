@@ -18,6 +18,10 @@ unreleased
   on Windows).  Such ports are probed: `open_any` tries this firmware,
   then the stock API; `enter_bootloader` tries the `bootloader` op, then
   the 1200-baud touch, and looks the port up again for the ROM.
+* The package bundles the firmware built by CI (ESP-IDF v6.1 container):
+  `uih flash` with no build directory installs it.  Releases also attach
+  `usb_insight_hub_firmware-<version>.zip`.  Firmware and package versions
+  are locked together.
 
 
 ## 0.1.0

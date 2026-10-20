@@ -9,13 +9,8 @@ import os
 import sys
 import time
 
-from . import discover, esp, ops, soak, stream_check, update_loop
+from . import bundled, discover, esp, ops, soak, stream_check, update_loop
 from .version import __version__
-
-# ESP-IDF build outputs, relative to the build directory.
-_BUILD_FILES = ('bootloader/bootloader.bin', 'partition_table/partition-table.bin',
-                'uih_firmware.bin')
-
 
 class CliError(Exception):
     pass
@@ -69,15 +64,23 @@ def _cmd_restore(args):
 
 
 def _build_files(build_dir):
-    files = [os.path.join(build_dir, *f.split('/')) for f in _BUILD_FILES]
-    for f in files:
-        if not os.path.isfile(f):
-            raise CliError(f'missing build output: {f}')
-    return files
+    try:
+        return bundled.build_files(build_dir)
+    except LookupError as ex:
+        raise CliError(str(ex))
 
 
 def _cmd_flash(args):
-    _tool(args.serial).flash_firmware(*_build_files(args.build_dir))
+    if args.build_dir:
+        files = _build_files(args.build_dir)
+    else:
+        try:
+            files = bundled.files()
+        except LookupError as ex:
+            raise CliError(str(ex))
+        m = bundled.manifest()
+        print(f'installing bundled firmware {m["version"]} ({m["git"]})', flush=True)
+    _tool(args.serial).flash_firmware(*files)
 
 
 def _cmd_update_loop(args):
@@ -229,8 +232,9 @@ def parser():
     add('exit-bootloader', _cmd_exit_bootloader, 'leave the ROM bootloader')
     add('backup', _cmd_backup, 'back up the whole flash').add_argument('path')
     add('restore', _cmd_restore, 'write a whole-flash backup and boot it').add_argument('path')
-    add('flash', _cmd_flash, 'install firmware from an ESP-IDF build directory').add_argument(
-        'build_dir')
+    add('flash', _cmd_flash,
+        'install the bundled firmware, or one from an ESP-IDF build directory').add_argument(
+        'build_dir', nargs='?', help='default: the firmware bundled in this package')
     s = add('update-loop', _cmd_update_loop,
             'repeat: flash this firmware, verify, restore the stock backup, verify')
     s.add_argument('build_dir')

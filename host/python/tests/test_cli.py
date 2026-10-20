@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: Copyright 2026 Jetperch LLC
 # SPDX-License-Identifier: Apache-2.0
 
+import os
+
 import pytest
 
 from usb_insight_hub import cli, discover
@@ -76,6 +78,27 @@ def test_flash_from_build_dir(env, tmp_path):
     assert [str(a) for a in args] == [str(build / 'bootloader/bootloader.bin'),
                                       str(build / 'partition_table/partition-table.bin'),
                                       str(build / 'uih_firmware.bin')]
+
+
+def test_flash_bundled_firmware(env, tmp_path, monkeypatch, capsys):
+    from usb_insight_hub import bundled
+    root = tmp_path / 'fw'
+    root.mkdir()
+    for name in bundled.FILES:
+        (root / name).write_bytes(b'\x00')
+    (root / 'manifest.json').write_text('{"version": "0.1.1", "git": "abc1234", "idf": "v6.1"}')
+    monkeypatch.setattr(cli.bundled, 'default_root', lambda: str(root))
+    assert 0 == cli.main(['flash'])
+    name, args = FakeTool.instances[-1].calls[0]
+    assert name == 'flash_firmware'
+    assert [os.path.basename(a) for a in args] == list(bundled.FILES)
+    assert '0.1.1 (abc1234)' in capsys.readouterr().out
+
+
+def test_flash_without_bundled_firmware(env, tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(cli.bundled, 'default_root', lambda: str(tmp_path / 'none'))
+    assert 1 == cli.main(['flash'])
+    assert 'no bundled firmware' in capsys.readouterr().err
 
 
 def test_update_loop_cmd(env, tmp_path, monkeypatch, capsys):

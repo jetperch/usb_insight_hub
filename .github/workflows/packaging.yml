@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Test, build and (on v* tags) publish the usb_insight_hub_jetperch
-# Python package.  The package is pure Python: one sdist and one wheel.
+# Python package.  The package is pure Python (one sdist and one wheel) and
+# carries the firmware built here, so `uih flash` needs no ESP-IDF.
 
 name: Packaging
 
@@ -71,8 +72,39 @@ jobs:
       - name: Run the unit tests
         run: ctest --test-dir build/host --output-on-failure
 
+  build_firmware:
+    name: Build firmware (ESP-IDF v6.1)
+    runs-on: ubuntu-latest
+    container: espressif/idf:v6.1
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
+
+      - name: Build
+        shell: bash
+        run: |
+          # The firmware embeds the git hash (main/CMakeLists.txt).
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          . "$IDF_PATH/export.sh"
+          cd firmware/esp32s3
+          idf.py build
+          idf.py --version | sed 's/^ESP-IDF //' > build/idf_version.txt
+
+      - name: Upload firmware build
+        uses: actions/upload-artifact@v7
+        with:
+          name: firmware_build
+          path: |
+            firmware/esp32s3/build/bootloader/bootloader.bin
+            firmware/esp32s3/build/partition_table/partition-table.bin
+            firmware/esp32s3/build/uih_firmware.bin
+            firmware/esp32s3/build/project_description.json
+            firmware/esp32s3/build/idf_version.txt
+          if-no-files-found: error
+
   build_python:
     name: Build sdist and wheel
+    needs: build_firmware
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
@@ -86,8 +118,41 @@ jobs:
       - name: Install build tools
         run: python -m pip install build twine
 
+      - name: Download firmware build
+        uses: actions/download-artifact@v8
+        with:
+          name: firmware_build
+          path: fwbuild
+
+      - name: Bundle the firmware into the package
+        shell: bash
+        run: |
+          python tools/bundle_firmware.py fwbuild --git "${GITHUB_SHA::7}" \
+            --idf "$(cat fwbuild/idf_version.txt)"
+
       - name: Build
         run: python -m build host/python -o dist
+
+      - name: Check the wheel carries the firmware
+        shell: bash
+        run: |
+          python -m zipfile -l dist/*.whl | grep -E "usb_insight_hub/fw/(uih_firmware|bootloader|partition-table)\.bin|manifest\.json"
+          test "$(python -m zipfile -l dist/*.whl | grep -c usb_insight_hub/fw/)" = 4
+
+      - name: Zip the firmware for the release
+        shell: bash
+        run: |
+          VERSION=$(python -c "import json; print(json.load(open('host/python/src/usb_insight_hub/fw/manifest.json'))['version'])")
+          mkdir firmware_release
+          cd host/python/src/usb_insight_hub/fw
+          python -m zipfile -c "../../../../../firmware_release/usb_insight_hub_firmware-${VERSION}.zip" *
+
+      - name: Upload firmware zip
+        uses: actions/upload-artifact@v7
+        with:
+          name: firmware_release
+          path: firmware_release/*.zip
+          if-no-files-found: error
 
       - name: Check the package metadata
         run: python -m twine check --strict dist/*
@@ -112,6 +177,7 @@ jobs:
       - reuse
       - test_python
       - test_firmware_host
+      - build_firmware
       - build_python
     runs-on: ubuntu-latest
     permissions:
@@ -125,9 +191,16 @@ jobs:
           name: python_packages
           path: dist/
 
+      # Kept out of dist/, which is uploaded to PyPI.
+      - name: Download firmware zip
+        uses: actions/download-artifact@v8
+        with:
+          name: firmware_release
+          path: firmware_release/
+
       - name: Display artifacts
         shell: bash
-        run: ls dist/*
+        run: ls dist/* firmware_release/*
 
       - name: Publish packages to PyPI
         uses: pypa/gh-action-pypi-publish@v1.14.2
@@ -137,4 +210,6 @@ jobs:
       - name: Publish release assets
         uses: softprops/action-gh-release@v3
         with:
-          files: dist/*
+          files: |
+            dist/*
+            firmware_release/*

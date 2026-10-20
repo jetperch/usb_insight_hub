@@ -14,3 +14,6 @@ firmware/esp32s3/managed_components/
 firmware/esp32s3/dependencies.lock
 *.bin
 !test/**/*.bin
+
+# Placed by tools/bundle_firmware.py for release builds.
+host/python/src/usb_insight_hub/fw/
