@@ -12,7 +12,7 @@ and tools.
 
 ## 0.1.1
 
-unreleased
+2026 Oct 20
 
 * Windows: find hubs without a USB product string (pyserial never sets it
   on Windows).  Such ports are probed: `open_any` tries this firmware,
