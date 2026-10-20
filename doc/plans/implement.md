@@ -405,12 +405,19 @@ JS220, CH3 JS320); probe the channel map before relying on it.
 - 2026-10-20: **Stage 6 plan** written:
   `joulescope_ci/doc/plans/usb_insight_hub.md`.
 
-### Remaining (manual, needs a person at the hub)
+- 2026-10-20: **Manual checks (Matt).**  Buttons toggle each port's
+  power (JS110 on port 1, JS220 on 2, JS320 on 3; port 1 also checked with
+  a JS220).  The JS110's USB LED stays dark after a button power-on, but
+  the JS110 does re-enumerate and draws about 65 mA after a port power
+  cycle, so this is JS110 LED behavior.  Hub power-up turns all ports on
+  in a little under a second.  The displays stayed dark: the display reset
+  is active high (stock TFT_eSPI setup uses `TFT_RST -1`), and the
+  esp_lcd default held the panels in reset.  Fixed in `05bff33`; `info`
+  now reports the display start-up result.  Display look still to be
+  confirmed.
 
-- Press each port button: the port toggles and `uih stream` prints a
-  `button` event.
-- Unplug and replug the hub's power: all ports come on (record the time
-  from power to ports on).
+### Remaining (manual)
+
 - Look at the displays: upright, readable, colors right (ON green, OFF
   grey, FAULT red, white text on black).  If they are inverted or
   mirrored, adjust `esp_lcd_panel_invert_color` / `mirror` in
