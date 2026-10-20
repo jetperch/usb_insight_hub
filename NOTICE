@@ -1,0 +1,15 @@
+USB Insight Hub firmware and host software
+Copyright 2026 Jetperch LLC
+Licensed under the Apache License, Version 2.0 (LICENSES/Apache-2.0.txt).
+
+This project contains hardware knowledge derived from the USB Insight Hub
+stock firmware and STM8 base MCU firmware:
+
+  USB-Insight-HUB-Software
+  https://github.com/Aeriosolutions/USB-Insight-HUB-Software
+  "USB Insight Hub specific code is under the MIT License."
+
+That includes pin assignments, the STM8 I2C register map and encoding, the
+PAC1943 configuration and conversion constants, and the bootloader recovery
+procedure.  The MIT license text is in LICENSES/MIT.txt.  No stock source
+files are copied into this repository.

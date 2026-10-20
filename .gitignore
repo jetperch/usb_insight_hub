@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: Copyright 2026 Jetperch LLC
+# SPDX-License-Identifier: Apache-2.0
+
+__pycache__/
+*.egg-info/
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
+build/
+firmware/esp32s3/sdkconfig
+firmware/esp32s3/sdkconfig.old
+firmware/esp32s3/managed_components/
+firmware/esp32s3/dependencies.lock
+*.bin
+!test/**/*.bin

@@ -1,0 +1,6 @@
+version = 1
+
+[[annotations]]
+path = ["NOTICE", "REUSE.toml", "test/vectors/**"]
+SPDX-FileCopyrightText = "Copyright 2026 Jetperch LLC"
+SPDX-License-Identifier = "Apache-2.0"

@@ -1,0 +1,28 @@
+<!--
+# SPDX-FileCopyrightText: Copyright 2026 Jetperch LLC
+# SPDX-License-Identifier: Apache-2.0
+-->
+
+# Tools
+
+Thin wrappers around the `uih` command line tool from the host package
+(`host/python`).  Install it first, for example:
+
+```bash
+python3 -m venv host/python/.venv
+host/python/.venv/bin/pip install -e host/python
+```
+
+Every tool accepts `--serial <MAC>` (with or without colons).  It is
+optional when exactly one hub is connected.
+
+| Tool | Purpose |
+| --- | --- |
+| `enter_bootloader.py` | Enter the ESP32-S3 ROM bootloader (stock or Jetperch firmware) |
+| `exit_bootloader.py` | Leave the ROM bootloader and boot the application |
+| `backup.py PATH` | Back up the whole 8 MB flash, verify it, and boot again |
+| `restore.py PATH` | Write a whole-flash backup and boot it |
+| `flash.py BUILD_DIR` | Install Jetperch firmware from an ESP-IDF build directory |
+| `soak.py` | Toggle port power repeatedly and report dropped commands |
+
+A full backup takes about 12 minutes.
