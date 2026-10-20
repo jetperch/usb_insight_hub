@@ -416,9 +416,8 @@ JS220, CH3 JS320); probe the channel map before relying on it.
   now reports the display start-up result.  Display look still to be
   confirmed.
 
-### Remaining (manual)
-
-- Look at the displays: upright, readable, colors right (ON green, OFF
-  grey, FAULT red, white text on black).  If they are inverted or
-  mirrored, adjust `esp_lcd_panel_invert_color` / `mirror` in
-  `components/uih_drivers/src/display.c`.
+- 2026-10-20: **Displays confirmed (Matt): "look great".**  The fix needed
+  the stock TFT_eSPI setup, not esp_lcd's ST7789 driver: SPI mode 3, the
+  full panel init (voltages, porch, gamma), software reset after the
+  active-high reset pulse, and the stock backlight PWM (`31145ca`).
+  **Stages 0-5 complete.**
