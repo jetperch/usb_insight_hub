@@ -67,7 +67,8 @@ class FakeHub:
 def run(world, cycles=2, **kwargs):
     return update_loop.run('B43A45B7BFBC', ['bl.bin', 'pt.bin', 'app.bin'], 'backup.bin',
                            cycles=cycles, expect_fw='0.1.0', tool_factory=world.tool,
-                           waiter=world.wait, opener=world.open, **kwargs)
+                           waiter=world.wait, opener=world.open,
+                           sleep=kwargs.pop('sleep', lambda s: None), **kwargs)
 
 
 def test_cycles_update_then_restore():
@@ -134,3 +135,14 @@ def test_timings_recorded():
     results = run(world, cycles=1, clock=lambda: next(t))
     r = results[0]
     assert r.update_s > 0 and r.restore_s > 0
+
+
+def test_meters_read_after_settle():
+    # The stock firmware's moving average starts from zero after boot, so
+    # readings taken at once can be half the real value (seen 2026-10-20).
+    world = World()
+    sleeps = []
+    update_loop.run('B43A45B7BFBC', ['a', 'b', 'c'], 'backup.bin', cycles=1,
+                    expect_fw='0.1.0', tool_factory=world.tool, waiter=world.wait,
+                    opener=world.open, sleep=sleeps.append, settle_s=2.0)
+    assert sleeps.count(2.0) == 2  # once per firmware

@@ -375,18 +375,43 @@ JS220, CH3 JS320); probe the channel map before relying on it.
   - **Manual, pending (needs a person at the hub):** button presses produce
     `button` events, and a hub power-up turns all ports on (time to
     ports-on).
-- 2026-10-20: **Stage 3 in progress.**  PAC1943 meters, `stream` and fault
-  events were built in Stage 2.  Finding: the PAC channels are routed
-  3, 1, 2 to ports 1, 2, 3 (stock `meterBoardMap`); fixed and confirmed by
-  powering ports one at a time.  `stream_check.py` added; the 1-hour 10 Hz
-  run and the stock comparison (via `update_loop.py`) are next.
+- 2026-10-20: **Stage 3 complete.**  PAC1943 meters, `stream` and fault
+  events (built in Stage 2), `stream_check.py`.  Acceptance:
+  - 1-hour stream at 10 Hz: 36,012 messages, 0 lost, no reset (uptime
+    continuous).
+  - Meters agree with the stock firmware on the same hub and loads within
+    20 mV and 2 mA (tolerance).  Ours reads about 15 mV higher on every
+    port with the same currents.  The conversions match, so this is most
+    likely a real supply difference: the stock firmware loads the hub
+    more (WiFi, brighter displays).  Not confirmed with an external meter.
+  - Finding: the PAC channels are routed 3, 1, 2 to ports 1, 2, 3 (stock
+    `meterBoardMap`); fixed and confirmed by powering ports one at a time.
+  - Finding: just after boot, our meters read 0 for about 100 ms
+    (documented), and the stock firmware's moving average starts from 0
+    (one half-voltage reading in the first 20-cycle run); `update_loop.py`
+    now waits 2 s before reading the meters.
+  - Fault parsing is covered by unit tests only (no short-circuit test).
 - 2026-10-20: **Stage 4 implemented.**  Text layout, change detection,
   5 x 7 font and band rendering in `uih_core` (host tests, 100% lines);
   ST7789 driver shares one panel across the three CS lines; the display
   task draws at 2 Hz from a mutex-protected copy of the hub state.  Latency
   unchanged with the display running (soak above).  **Manual, pending:**
   look at the displays (orientation, colors, inversion).
-- 2026-10-20: **Stage 5 tooling.**  `update_loop.py` (update, verify,
-  restore, verify, compare meters); hardware run pending.
+- 2026-10-20: **Stage 5 complete.**  `update_loop.py` (update, verify,
+  restore, verify, compare meters).  20 of 20 cycles passed with no
+  manual step: update (stock to this firmware) about 3.6 s, restore (whole
+  8 MB backup, back to stock) about 25 s.  Then 5 of 5 cycles with the
+  meter settle.  Documented in `README.md` and `tools/README.md`.
 - 2026-10-20: **Stage 6 plan** written:
   `joulescope_ci/doc/plans/usb_insight_hub.md`.
+
+### Remaining (manual, needs a person at the hub)
+
+- Press each port button: the port toggles and `uih stream` prints a
+  `button` event.
+- Unplug and replug the hub's power: all ports come on (record the time
+  from power to ports on).
+- Look at the displays: upright, readable, colors right (ON green, OFF
+  grey, FAULT red, white text on black).  If they are inverted or
+  mirrored, adjust `esp_lcd_panel_invert_color` / `mirror` in
+  `components/uih_drivers/src/display.c`.

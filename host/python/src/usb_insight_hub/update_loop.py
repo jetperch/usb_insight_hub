@@ -45,14 +45,19 @@ def _default_tool(serial):
     return esp.Esptool(ops.enter_bootloader(serial))
 
 
-def _read(serial, opener, sleep, clock):
-    """Open the hub once its firmware answers; return (info, ports)."""
+def _read(serial, opener, sleep, clock, settle_s):
+    """Open the hub once its firmware answers; return (info, ports).
+
+    Waits ``settle_s`` before reading the ports: just after boot, meter
+    readings are 0 (this firmware) or still averaging up from 0 (stock).
+    """
     deadline = clock() + _OPEN_TIMEOUT_S
     while True:
         try:
             hub = opener(serial, timeout=1.0)
             try:
                 info = hub.info()
+                sleep(settle_s)
                 ports, _ = hub.status()
                 return info, ports
             finally:
@@ -65,13 +70,14 @@ def _read(serial, opener, sleep, clock):
 
 def run(serial, files, backup, cycles, expect_fw, tool_factory=_default_tool,
         waiter=discover.wait, opener=ops.open_any, sleep=time.sleep,
-        clock=time.monotonic, progress=None):
+        clock=time.monotonic, progress=None, settle_s=2.0):
     """Run the loop; stop at the first cycle with an error.
 
     :param files: the bootloader, partition table and app images.
     :param backup: the full-flash stock backup.
     :param expect_fw: the version this firmware must report.
     :param progress: optional callable(CycleResult) after each cycle.
+    :param settle_s: seconds between booting and reading the meters.
     :return: the list of CycleResult.
     """
     results = []
@@ -82,7 +88,7 @@ def run(serial, files, backup, cycles, expect_fw, tool_factory=_default_tool,
             t0 = clock()
             tool_factory(serial).flash_firmware(*files)
             waiter(serial, discover.KIND_JTAG, timeout=_OPEN_TIMEOUT_S)
-            r.custom_info, r.custom_ports = _read(serial, opener, sleep, clock)
+            r.custom_info, r.custom_ports = _read(serial, opener, sleep, clock, settle_s)
             r.update_s = clock() - t0
             if r.custom_info.get('fw') != expect_fw:
                 r.error = f'version {r.custom_info.get("fw")}, expected {expect_fw}'
@@ -92,7 +98,7 @@ def run(serial, files, backup, cycles, expect_fw, tool_factory=_default_tool,
             t0 = clock()
             tool_factory(serial).restore(backup)
             waiter(serial, discover.KIND_STOCK, timeout=_OPEN_TIMEOUT_S)
-            r.stock_info, r.stock_ports = _read(serial, opener, sleep, clock)
+            r.stock_info, r.stock_ports = _read(serial, opener, sleep, clock, settle_s)
             r.restore_s = clock() - t0
         except Exception as ex:  # noqa: BLE001
             r.error = (r.error + '; ' if r.error else '') + f'restore: {ex}'
