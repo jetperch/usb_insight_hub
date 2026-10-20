@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: Copyright 2026 Jetperch LLC
+# SPDX-License-Identifier: Apache-2.0
+
+* text=auto
+
+# Protocol test vectors are byte exact (one deliberately ends in CR): never
+# convert their line endings, or a Windows checkout adds CR to every line.
+test/vectors/*.txt -text

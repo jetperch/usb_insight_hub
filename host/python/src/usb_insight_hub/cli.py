@@ -69,7 +69,7 @@ def _cmd_restore(args):
 
 
 def _build_files(build_dir):
-    files = [os.path.join(build_dir, f) for f in _BUILD_FILES]
+    files = [os.path.join(build_dir, *f.split('/')) for f in _BUILD_FILES]
     for f in files:
         if not os.path.isfile(f):
             raise CliError(f'missing build output: {f}')
