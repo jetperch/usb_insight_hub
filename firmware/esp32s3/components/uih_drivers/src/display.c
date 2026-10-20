@@ -39,7 +39,11 @@
 #define BACKLIGHT_DUTY (600)      ///< of 1023: fixed, no menu
 #define DRAW_TIMEOUT_MS (100)
 
-#define ESP_RETURN_ON_ERROR_(x) do { esp_err_t rc_ = (x); if (rc_ != ESP_OK) { return rc_; } } while (0)
+/// Return on error, naming the failed step for uih_board_display_init().
+#define STEP_(name, x) do { \
+    esp_err_t rc_ = (x); \
+    if (rc_ != ESP_OK) { *step = (name); return rc_; } \
+} while (0)
 #define ALL_DISPLAYS (-1)
 #define NO_DISPLAY (-2)
 
@@ -98,17 +102,18 @@ static esp_err_t draw(int display, uint16_t y, uint16_t h, const uint8_t * pixel
     return rc;
 }
 
-esp_err_t uih_board_display_init(void) {
+esp_err_t uih_board_display_init(const char ** step) {
     done_ = xSemaphoreCreateBinary();
     band_ = heap_caps_malloc(UIH_DISPLAY_BAND_BYTES, MALLOC_CAP_DMA);
     if (!done_ || !band_) {
+        *step = "alloc";
         return ESP_ERR_NO_MEM;
     }
     gpio_config_t cs_cfg = {.mode = GPIO_MODE_OUTPUT};
     for (int i = 0; i < 3; ++i) {
         cs_cfg.pin_bit_mask |= 1ULL << CS[i];
     }
-    ESP_RETURN_ON_ERROR_(gpio_config(&cs_cfg));
+    STEP_("cs", gpio_config(&cs_cfg));
 
     spi_bus_config_t bus = {
         .mosi_io_num = LCD_MOSI,
@@ -118,7 +123,7 @@ esp_err_t uih_board_display_init(void) {
         .quadhd_io_num = -1,
         .max_transfer_sz = UIH_DISPLAY_BAND_BYTES,
     };
-    ESP_RETURN_ON_ERROR_(spi_bus_initialize(LCD_HOST, &bus, SPI_DMA_CH_AUTO));
+    STEP_("spi", spi_bus_initialize(LCD_HOST, &bus, SPI_DMA_CH_AUTO));
     esp_lcd_panel_io_handle_t io;
     esp_lcd_panel_io_spi_config_t io_cfg = {
         .cs_gpio_num = -1,  // CS is selected per display, above
@@ -131,29 +136,32 @@ esp_err_t uih_board_display_init(void) {
         .lcd_cmd_bits = 8,
         .lcd_param_bits = 8,
     };
-    ESP_RETURN_ON_ERROR_(esp_lcd_new_panel_io_spi(LCD_HOST, &io_cfg, &io));
+    STEP_("io", esp_lcd_new_panel_io_spi(LCD_HOST, &io_cfg, &io));
     esp_lcd_panel_dev_config_t dev_cfg = {
         .reset_gpio_num = LCD_RESET,
         .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_BGR,
         .bits_per_pixel = 16,
+        .flags.reset_active_high = 1,   // doc/hardware.md
     };
-    ESP_RETURN_ON_ERROR_(esp_lcd_new_panel_st7789(io, &dev_cfg, &panel_));
+    STEP_("panel", esp_lcd_new_panel_st7789(io, &dev_cfg, &panel_));
     cs_select(ALL_DISPLAYS);  // the common setup
-    ESP_RETURN_ON_ERROR_(esp_lcd_panel_reset(panel_));
-    ESP_RETURN_ON_ERROR_(esp_lcd_panel_init(panel_));
-    ESP_RETURN_ON_ERROR_(esp_lcd_panel_invert_color(panel_, true));
-    ESP_RETURN_ON_ERROR_(esp_lcd_panel_mirror(panel_, true, true));
-    ESP_RETURN_ON_ERROR_(esp_lcd_panel_set_gap(panel_, 0, LCD_Y_GAP));
+    STEP_("reset", esp_lcd_panel_reset(panel_));
+    STEP_("init", esp_lcd_panel_init(panel_));
+    STEP_("invert", esp_lcd_panel_invert_color(panel_, true));
+    STEP_("mirror", esp_lcd_panel_mirror(panel_, true, true));
+    STEP_("gap", esp_lcd_panel_set_gap(panel_, 0, LCD_Y_GAP));
 
     // Clear the whole screen on all three displays at once.
     memset(band_, 0, UIH_DISPLAY_BAND_BYTES);
     for (uint16_t y = 0; y < UIH_DISPLAY_HEIGHT; y += UIH_DISPLAY_BAND_HEIGHT_MAX) {
-        ESP_RETURN_ON_ERROR_(draw(ALL_DISPLAYS, y, UIH_DISPLAY_BAND_HEIGHT_MAX, band_));
+        STEP_("clear", draw(ALL_DISPLAYS, y, UIH_DISPLAY_BAND_HEIGHT_MAX, band_));
     }
     cs_select(ALL_DISPLAYS);
     esp_err_t rc = esp_lcd_panel_disp_on_off(panel_, true);
     cs_select(NO_DISPLAY);
-    return (rc == ESP_OK) ? backlight_init() : rc;
+    STEP_("on", rc);
+    STEP_("backlight", backlight_init());
+    return ESP_OK;
 }
 
 uint8_t * uih_board_display_buffer(void) {

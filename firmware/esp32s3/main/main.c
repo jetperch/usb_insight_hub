@@ -29,6 +29,7 @@
 #include "freertos/queue.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
+#include <stdio.h>
 #include <string.h>
 
 #define TICK_MS (10)
@@ -91,9 +92,15 @@ static void display_task(void * arg) {
     (void) arg;
     static uih_display_page_s shown[UIH_PORT_COUNT];
     bool valid[UIH_PORT_COUNT] = {false};
-    if (uih_board_display_init() != ESP_OK) {
+    static char error[48];
+    const char * step = "";
+    esp_err_t rc = uih_board_display_init(&step);
+    if (rc != ESP_OK) {
+        snprintf(error, sizeof(error), "error: %s %s", step, esp_err_to_name(rc));
+        uih_app_display_status(&app_, error);
         vTaskDelete(NULL);  // the hub works without its displays
     }
+    uih_app_display_status(&app_, "ok");
     uint8_t * band = uih_board_display_buffer();
     while (1) {
         uih_display_status_s status[UIH_PORT_COUNT];

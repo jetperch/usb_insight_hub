@@ -93,7 +93,11 @@ static void test_ping_info_status(void) {
     bus.now_ms = 1234;
     request("{\"op\":\"info\",\"seq\":2}");
     ASSERT_HAS("\"fw\":\"0.1.0\",\"git\":\"abc1234\",\"proto\":1,\"idf\":\"v6.1\",\"serial\":\"B43A45B7BFBC\"");
-    ASSERT_HAS("\"stm8\":4,\"meter\":true,\"reset\":\"poweron\",\"uptime_ms\":1234");
+    ASSERT_HAS("\"stm8\":4,\"meter\":true,\"display\":\"starting\",\"reset\":\"poweron\",\"uptime_ms\":1234");
+    // The display task reports its state later, from its own task.
+    uih_app_display_status(&app, "ok");
+    request("{\"op\":\"info\",\"seq\":4}");
+    ASSERT_HAS("\"display\":\"ok\"");
     request("{\"op\":\"status\",\"seq\":3}");
     ASSERT_HAS("\"ports\":[{\"port\":1,\"power\":true,\"data\":true,\"fault\":false");
     ASSERT_HAS("\"aux\":{\"vhost\":true,\"vext\":false,\"usb3\":true}");
@@ -231,7 +235,7 @@ static void test_info_without_stm8(void) {
     uih_app_boot(&app, false, "wdt");
     ASSERT_HAS("\"defaults\":false");
     request("{\"op\":\"info\",\"seq\":1}");
-    ASSERT_HAS("\"stm8\":null,\"meter\":false,\"reset\":\"wdt\"");
+    ASSERT_HAS("\"stm8\":null,\"meter\":false,\"display\":\"starting\",\"reset\":\"wdt\"");
 }
 
 int main(void) {

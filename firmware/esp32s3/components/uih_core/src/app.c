@@ -107,6 +107,7 @@ static void handle(uih_app_s * app, const uih_request_s * req) {
             uih_info_s info = app->pf.info;
             info.stm8_version = app->hub->stm8_version;
             info.meter = app->hub->meter_ok;
+        info.display = app->display_status;
             info.reset = app->reset_reason;
             info.uptime_ms = now_ms(app);
             uih_msg_rsp_begin(&w, app->buf, sizeof(app->buf), req->seq, req->op_name, NULL);
@@ -160,6 +161,10 @@ void uih_app_line(uih_app_s * app, const char * line, size_t len) {
     } else {
         handle(app, &req);
     }
+}
+
+void uih_app_display_status(uih_app_s * app, const char * status) {
+    app->display_status = status;
 }
 
 void uih_app_button(uih_app_s * app, uint8_t port) {

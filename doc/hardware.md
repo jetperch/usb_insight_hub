@@ -45,7 +45,7 @@ measurements on hub `B43A45B7BFBC` (2026-10-20).
 | Display SPI MOSI | 11 | shared by the three displays |
 | Display SPI SCLK | 9 | 40 MHz |
 | Display DC | 10 | shared |
-| Display reset | 14 | shared |
+| Display reset | 14 | shared, **active high** (high holds the displays in reset) |
 | Display CS for CH1, CH2, CH3 | 6, 16, 12 | |
 | Display backlight for CH1, CH2, CH3 | 13, 15, 17 | PWM |
 | Buttons for CH1, CH2, CH3 | 39, 38, 37 | active low, internal pull-up |
@@ -55,7 +55,11 @@ measurements on hub `B43A45B7BFBC` (2026-10-20).
 | `HUB_RESET` | 21 | never driven (as in the stock firmware) |
 
 Displays: ST7789, 240 x 240, BGR color order, rotation 2 in the stock
-firmware.
+firmware.  The stock build uses the TFT_eSPI library's own `User_Setup.h`
+(`TFT_RST -1`, so the library never drives the reset pin), not the copy in
+`src/`; the stock firmware pulses `DISPLAY_ALL_DRES` high for 10 ms and
+leaves it low.  An active-low reset (the esp_lcd default) holds the
+displays in reset, and every SPI write still succeeds.
 
 
 ## STM8 base MCU (I2C address 0x51)

@@ -87,6 +87,7 @@ typedef struct {
     const char * serial;
     int32_t stm8_version;   ///< -1 if the STM8 did not answer
     bool meter;
+    const char * display;   ///< "starting", "ok" or "error: ..."
     const char * reset;
     uint32_t uptime_ms;
 } uih_info_s;

@@ -150,7 +150,7 @@ class SimHub:
 
     def _op_info(self, req):
         self._respond('info', req.seq, fw='0.0.0-sim', git='sim', proto=1, idf='sim',
-                      serial=self.serial, stm8=4, meter=True, reset='poweron',
+                      serial=self.serial, stm8=4, meter=True, display='ok', reset='poweron',
                       uptime_ms=self._t())
 
     def _op_status(self, req):

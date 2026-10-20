@@ -175,7 +175,8 @@ static void test_message_vectors(void) {
     CHECK_MESSAGE("rsp_stream");
 
     uih_info_s info = {.fw = "0.1.0", .git = "c813f74", .idf = "v6.1", .serial = "B43A45B7BFBC",
-                       .stm8_version = 4, .meter = true, .reset = "poweron", .uptime_ms = 1234};
+                       .stm8_version = 4, .meter = true, .display = "ok", .reset = "poweron",
+                       .uptime_ms = 1234};
     uih_msg_rsp_begin(&w, buf, sizeof(buf), 2, "info", NULL);
     uih_msg_info(&w, &info);
     uih_msg_end(&w);
@@ -183,6 +184,7 @@ static void test_message_vectors(void) {
 
     info.stm8_version = -1;
     info.meter = false;
+    info.display = "error: spi ESP_ERR_TIMEOUT";
     info.reset = "wdt";
     info.uptime_ms = 5;
     uih_msg_rsp_begin(&w, buf, sizeof(buf), 3, "info", NULL);

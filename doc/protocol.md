@@ -136,6 +136,8 @@ Successful responses carry these keys:
   without colons).
 - `stm8`: STM8 firmware version, or `null` if the STM8 did not answer.
 - `meter`: bool, whether the PAC1943 answered.
+- `display`: the displays' state: `"starting"`, `"ok"`, or `"error: "`
+  followed by the failed step and the ESP-IDF error name.
 - `reset`: the reset reason (`poweron`, `sw`, `panic`, `wdt`, `usb`,
   `brownout`, `other`).
 - `uptime_ms`: milliseconds since boot.

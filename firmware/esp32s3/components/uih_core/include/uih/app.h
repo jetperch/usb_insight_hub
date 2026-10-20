@@ -58,6 +58,7 @@ typedef struct {
     uih_app_action_e action;
     uint32_t action_ms;
     const char * reset_reason;
+    const char * volatile display_status;   ///< written by the display task
     char buf[UIH_APP_TX_MAX];
 } uih_app_s;
 
@@ -72,6 +73,15 @@ void uih_app_line(uih_app_s * app, const char * line, size_t len);
 
 /// Report a received line that exceeded UIH_PROTO_LINE_MAX.
 void uih_app_overflow(uih_app_s * app);
+
+/**
+ * @brief Set the display state reported by info.
+ *
+ * Callable from any task: a single pointer store.
+ *
+ * @param status A string that stays valid ("ok", or "error: ...").
+ */
+void uih_app_display_status(uih_app_s * app, const char * status);
 
 /// A button press for port 1..3.
 void uih_app_button(uih_app_s * app, uint8_t port);

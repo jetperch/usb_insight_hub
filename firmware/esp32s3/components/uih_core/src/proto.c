@@ -326,6 +326,7 @@ void uih_msg_info(uih_writer_s * w, const uih_info_s * info) {
         w_i32(w, info->stm8_version);
     }
     uih_msg_bool(w, "meter", info->meter);
+    uih_msg_str(w, "display", info->display ? info->display : "starting");
     uih_msg_str(w, "reset", info->reset);
     uih_msg_u32(w, "uptime_ms", info->uptime_ms);
 }

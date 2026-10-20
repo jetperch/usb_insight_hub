@@ -41,8 +41,12 @@ void uih_board_buttons_init(void);
 /// Return the raw pressed mask: bit n-1 for the CHn button.
 uint8_t uih_board_buttons_read(void);
 
-/// Start the three displays: blank, on, with the fixed backlight level.
-esp_err_t uih_board_display_init(void);
+/**
+ * @brief Start the three displays: blank, on, with the fixed backlight level.
+ *
+ * @param[out] step On error, the name of the step that failed.
+ */
+esp_err_t uih_board_display_init(const char ** step);
 /// The DMA band buffer, UIH_DISPLAY_BAND_BYTES.
 uint8_t * uih_board_display_buffer(void);
 /// Draw a full-width band of rows y..y+h-1 on display 0..2 and wait for it.

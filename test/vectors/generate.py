@@ -106,11 +106,11 @@ MESSAGES = [
     ('rsp_info',
      '{"type":"rsp","seq":2,"op":"info","status":"ok","fw":"0.1.0","git":"c813f74",'
      '"proto":1,"idf":"v6.1","serial":"B43A45B7BFBC","stm8":4,"meter":true,'
-     '"reset":"poweron","uptime_ms":1234}'),
+     '"display":"ok","reset":"poweron","uptime_ms":1234}'),
     ('rsp_info_no_stm8',
      '{"type":"rsp","seq":3,"op":"info","status":"ok","fw":"0.1.0","git":"c813f74",'
      '"proto":1,"idf":"v6.1","serial":"B43A45B7BFBC","stm8":null,"meter":false,'
-     '"reset":"wdt","uptime_ms":5}'),
+     '"display":"error: spi ESP_ERR_TIMEOUT","reset":"wdt","uptime_ms":5}'),
     ('rsp_error', '{"type":"rsp","seq":7,"op":"set","status":"error","code":"not_applied"}'),
     ('rsp_error_op', '{"type":"rsp","seq":20,"op":"fly","status":"error","code":"op"}'),
     ('status', '{"type":"status","n":42,"t":12345,"ports":[' + _PORTS + ']}'),
