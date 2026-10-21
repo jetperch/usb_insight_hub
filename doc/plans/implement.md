@@ -458,3 +458,13 @@ JS220, CH3 JS320); probe the channel map before relying on it.
   on the watched ports, and no enumeration errors.  The hub did not reset
   during the runs (uptime continuous).  The earlier 60,000-command soak
   checked the STM8 read-back only (USB data off, 30 ms off time).
+- 2026-10-21: **Stage 6, steps 0-4 done** in joulescope_ci 0.3.11 (pushed):
+  - inventory `recovery: {source: uih, hub, port}`;
+  - `JCI_UIH_HUB`/`JCI_UIH_PORT`;
+  - the runner adapter over `usb_insight_hub`;
+  - hub power-cycle recovery;
+  - the dashboard Hub column.
+
+  Resume at stage 5 (the agent machine's hub), then the bench rollout as the
+  hubs arrive: `joulescope_ci/doc/plans/usb_insight_hub.md`.  Unreleased
+  here: `uih usb-soak` (0.1.2 in `CHANGELOG.md`).
